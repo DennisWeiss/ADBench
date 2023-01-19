@@ -1,5 +1,10 @@
 import os
-import logging; logging.basicConfig(level=logging.WARNING)
+import logging
+
+from baseline.DeepDataDepthAnomalyDetector.run import DeepDataDepthAnomalyDetector
+from baseline.MostNaive.run import MostNaive
+
+logging.basicConfig(level=logging.WARNING)
 import numpy as np
 import pandas as pd
 from itertools import product
@@ -10,6 +15,9 @@ from keras import backend as K
 
 from data_generator import DataGenerator
 from myutils import Utils
+
+
+np.seterr(all="ignore")
 
 class RunPipeline():
     def __init__(self, suffix:str=None, mode:str='rla', parallel:str=None,
@@ -59,7 +67,7 @@ class RunPipeline():
         # number of labeled anomalies
         self.nla_list = [0, 1, 5, 10, 25, 50, 75, 100]
         # seed list
-        self.seed_list = list(np.arange(3) + 1)
+        self.seed_list = list(np.arange(1) + 1)
 
         if self.noise_type is None:
             pass
@@ -84,13 +92,18 @@ class RunPipeline():
             from baseline.PyOD import PYOD
             from baseline.DAGMM.run import DAGMM
 
+
+
             # from pyod
-            for _ in ['IForest', 'OCSVM', 'CBLOF', 'COF', 'COPOD', 'ECOD', 'FeatureBagging', 'HBOS', 'KNN', 'LODA',
-                      'LOF', 'LSCP', 'MCD', 'PCA', 'SOD', 'SOGAAL', 'MOGAAL', 'DeepSVDD']:
-                self.model_dict[_] = PYOD
+            # for _ in ['IForest', 'OCSVM', 'CBLOF', 'COF', 'COPOD', 'ECOD', 'FeatureBagging', 'HBOS', 'KNN', 'LODA',
+            #           'LOF', 'LSCP', 'MCD', 'PCA', 'SOD', 'SOGAAL', 'MOGAAL', 'DeepSVDD']:
+            #     self.model_dict[_] = PYOD
 
             # DAGMM
-            self.model_dict['DAGMM'] = DAGMM
+            # self.model_dict['DAGMM'] = DAGMM
+            #
+            self.model_dict['MostNaive'] = MostNaive
+            self.model_dict['DeepDataDepthAnomalyDetector'] = DeepDataDepthAnomalyDetector
 
         # semi-supervised algorithms
         elif self.parallel == 'semi-supervise':
@@ -132,12 +145,12 @@ class RunPipeline():
     # dataset filter for delelting those datasets that do not satisfy the experimental requirement
     def dataset_filter(self):
         # dataset list in the current folder
-        dataset_list_org = [os.path.splitext(_)[0] for _ in os.listdir('datasets/Classical')
-                            if os.path.splitext(_)[1] == '.npz'] # classical AD datasets
-        dataset_list_org.extend([os.path.splitext(_)[0] for _ in os.listdir('datasets/CV_by_ResNet18')
-                                 if os.path.splitext(_)[1] == '.npz']) # CV datasets
-        dataset_list_org.extend([os.path.splitext(_)[0] for _ in os.listdir('datasets/NLP_by_BERT')
-                                 if os.path.splitext(_)[1] == '.npz']) # NLP datasets
+        # dataset_list_org = [os.path.splitext(_)[0] for _ in os.listdir('datasets/Classical')
+        #                     if os.path.splitext(_)[1] == '.npz'] # classical AD datasets
+        dataset_list_org = [os.path.splitext(_)[0] for _ in os.listdir('datasets/CV_by_ViT')
+                                 if os.path.splitext(_)[1] == '.npz'] # CV datasets
+        # dataset_list_org.extend([os.path.splitext(_)[0] for _ in os.listdir('datasets/NLP_by_BERT')
+        #                          if os.path.splitext(_)[1] == '.npz']) # NLP datasets
 
 
         dataset_list = []
@@ -200,35 +213,35 @@ class RunPipeline():
             print(f'Error in model initialization. Model:{self.model_name}, Error: {error}')
             pass
 
-        try:
-            # fitting
-            start_time = time.time()
-            self.clf = self.clf.fit(X_train=self.data['X_train'], y_train=self.data['y_train'])
-            end_time = time.time(); time_fit = end_time - start_time
+        # try:
+        # fitting
+        start_time = time.time()
+        self.clf = self.clf.fit(X_train=self.data['X_train'], y_train=self.data['y_train'])
+        end_time = time.time(); time_fit = end_time - start_time
 
 
-            # predicting score (inference)
-            start_time = time.time()
-            if self.model_name == 'DAGMM':
-                score_test = self.clf.predict_score(self.data['X_train'], self.data['X_test'])
-            else:
-                score_test = self.clf.predict_score(self.data['X_test'])
-            end_time = time.time(); time_inference = end_time - start_time
+        # predicting score (inference)
+        start_time = time.time()
+        if self.model_name == 'DAGMM':
+            score_test = self.clf.predict_score(self.data['X_train'], self.data['X_test'])
+        else:
+            score_test = self.clf.predict_score(self.data['X_test'])
+        end_time = time.time(); time_inference = end_time - start_time
 
-            # performance
-            result = self.utils.metric(y_true=self.data['y_test'], y_score=score_test, pos_label=1)
+        # performance
+        result = self.utils.metric(y_true=self.data['y_test'], y_score=score_test, pos_label=1)
 
-            K.clear_session()
-            print(f"Model: {self.model_name}, AUC-ROC: {result['aucroc']}, AUC-PR: {result['aucpr']}")
+        K.clear_session()
+        print(f"Model: {self.model_name}, AUC-ROC: {result['aucroc']}, AUC-PR: {result['aucpr']}")
 
-            del self.clf
-            gc.collect()
-
-        except Exception as error:
-            print(f'Error in model fitting. Model:{self.model_name}, Error: {error}')
-            time_fit, time_inference = None, None
-            result = {'aucroc': np.nan, 'aucpr': np.nan}
-            pass
+        del self.clf
+        gc.collect()
+        #
+        # except Exception as error:
+        #     print(f'Error in model fitting. Model:{self.model_name}, Error: {error}')
+        #     time_fit, time_inference = None, None
+        #     result = {'aucroc': np.nan, 'aucpr': np.nan}
+        #     pass
 
         return time_fit, time_inference, result
 
@@ -258,6 +271,8 @@ class RunPipeline():
         df_time_inference = pd.DataFrame(data=None, index=experiment_params, columns=list(self.model_dict.keys()))
 
         for i, params in tqdm(enumerate(experiment_params)):
+            if i > 372:
+                continue
             if self.noise_type is not None:
                 dataset, la, noise_param, self.seed = params
             else:

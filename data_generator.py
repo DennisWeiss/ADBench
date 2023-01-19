@@ -222,7 +222,7 @@ class DataGenerator():
             if self.dataset in self.dataset_list_classical:
                 data = np.load(os.path.join('datasets', 'Classical', self.dataset + '.npz'), allow_pickle=True)
             elif self.dataset in self.dataset_list_cv:
-                data = np.load(os.path.join('datasets', 'CV_by_ResNet18', self.dataset + '.npz'), allow_pickle=True)
+                data = np.load(os.path.join('datasets', 'CV_by_ViT', self.dataset + '.npz'), allow_pickle=True)
             elif self.dataset in self.dataset_list_nlp:
                 data = np.load(os.path.join('datasets', 'NLP_by_BERT', self.dataset + '.npz'), allow_pickle=True)
             else:

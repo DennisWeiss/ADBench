@@ -1,0 +1,11 @@
+scikit-learn==
+pyod==1.0.0
+Keras==2.8.0
+tensorflow==2.8.0
+torch==1.9.0
+rtdl==0.0.13
+delu
+lightgbm
+xgboost
+catboost
+copulas
